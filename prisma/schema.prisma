@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ExperienceLevel {
+  INTERN
+  ENTRY
+  MID
+  SENIOR
+  STAFF
+}
+
+enum RemotePreference {
+  REMOTE
+  HYBRID
+  ONSITE
+  FLEXIBLE
+}
+
+enum JobSourceType {
+  LINKEDIN
+  INDEED
+  GLASSDOOR
+  ZIPRECRUITER
+  MONSTER
+  GREENHOUSE
+  LEVER
+  COMPANY
+  CUSTOM
+}
+
+enum ApplicationStatus {
+  SAVED
+  READY
+  CONFIRMATION_REQUIRED
+  APPLIED
+  FAILED
+  SKIPPED
+}
+
+enum AutomationStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  PARTIAL
+}
+
+model User {
+  id              String          @id @default(cuid())
+  clerkUserId     String          @unique
+  email           String          @unique
+  name            String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  profile         Profile?
+  resumes         Resume[]
+  jobs            JobMatch[]
+  applications    Application[]
+  automationRuns  AutomationRun[]
+  notifications   Notification[]
+  autoApplyTasks  AutoApplyTask[]
+}
+
+model Profile {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  headline            String?
+  location            String?
+  preferredRoles      String[]
+  techStacks          String[]
+  preferredLocations  String[]
+  experienceLevel     ExperienceLevel    @default(ENTRY)
+  remotePreference    RemotePreference   @default(FLEXIBLE)
+  salaryMin           Int?
+  requiresSponsorship Boolean            @default(false)
+  autoApplyEnabled    Boolean            @default(false)
+  confirmBeforeSubmit Boolean            @default(true)
+  telegramChatId      String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Resume {
+  id           String           @id @default(cuid())
+  userId       String
+  label        String
+  storageKey   String
+  fileName     String
+  mimeType     String
+  rawText      String?
+  isMaster     Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scores       ATSScore[]
+  tailored     TailoredResume[]
+}
+
+model JobSource {
+  id          String        @id @default(cuid())
+  type        JobSourceType
+  name        String
+  baseUrl     String?
+  enabled     Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  jobs        Job[]
+}
+
+model Job {
+  id             String        @id @default(cuid())
+  sourceId       String?
+  externalId     String?
+  canonicalUrl   String        @unique
+  title          String
+  company        String
+  location       String?
+  remote         Boolean       @default(false)
+  description    String
+  applyUrl       String?
+  postedAt       DateTime?
+  detectedAts    String?
+  fingerprint    String        @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  source         JobSource?    @relation(fields: [sourceId], references: [id])
+  matches        JobMatch[]
+  scores         ATSScore[]
+  tailored       TailoredResume[]
+  coverLetters   CoverLetter[]
+  applications   Application[]
+}
+
+model ATSScore {
+  id             String   @id @default(cuid())
+  userId         String
+  jobId          String
+  resumeId       String
+  score          Int
+  matchedSkills  String[]
+  missingSkills  String[]
+  keywords       String[]
+  summary        String
+  createdAt      DateTime @default(now())
+  job            Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resume         Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, resumeId])
+}
+
+model TailoredResume {
+  id            String   @id @default(cuid())
+  userId        String
+  jobId         String
+  resumeId      String
+  markdown      String
+  pdfStorageKey String?
+  truthReport   Json
+  createdAt     DateTime @default(now())
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+}
+
+model CoverLetter {
+  id            String   @id @default(cuid())
+  userId        String
+  jobId         String
+  body          String
+  storageKey    String?
+  createdAt     DateTime @default(now())
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model JobMatch {
+  id           String   @id @default(cuid())
+  userId       String
+  jobId        String
+  score        Int
+  status       String   @default("new")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  userId          String
+  jobId           String
+  status          ApplicationStatus @default(SAVED)
+  submittedAt     DateTime?
+  notes           String?
+  confirmationUrl String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job             Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model AutomationRun {
+  id             String           @id @default(cuid())
+  userId         String?
+  status         AutomationStatus @default(QUEUED)
+  startedAt      DateTime         @default(now())
+  completedAt    DateTime?
+  jobsFetched    Int              @default(0)
+  jobsStored     Int              @default(0)
+  resumesCreated Int              @default(0)
+  error          String?
+  metadata       Json?
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  channel   String
+  subject   String
+  body      String
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AutoApplyTask {
+  id          String            @id @default(cuid())
+  userId      String
+  jobId       String
+  adapter     String
+  status      ApplicationStatus @default(READY)
+  attempts    Int               @default(0)
+  maxAttempts Int               @default(3)
+  lastError   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
