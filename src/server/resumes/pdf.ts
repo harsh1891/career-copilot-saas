@@ -20,3 +20,25 @@ export function renderAtsSafeResumeHtml(markdown: string) {
   <body>${escaped.replace(/\n/g, "<br />")}</body>
 </html>`;
 }
+
+export async function renderResumePdf(markdown: string) {
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  try {
+    await page.setContent(renderAtsSafeResumeHtml(markdown), { waitUntil: "networkidle" });
+    return await page.pdf({
+      format: "Letter",
+      printBackground: false,
+      margin: {
+        top: "0.5in",
+        right: "0.55in",
+        bottom: "0.5in",
+        left: "0.55in"
+      }
+    });
+  } finally {
+    await browser.close();
+  }
+}

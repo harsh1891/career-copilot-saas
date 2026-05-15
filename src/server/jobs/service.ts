@@ -2,10 +2,24 @@ import { JobSourceType } from "@prisma/client";
 import { getDb } from "@/server/db";
 import { dedupeJobs, fingerprintJob } from "@/server/jobs/dedupe";
 import { ApifyJobAdapter } from "@/server/jobs/adapters/apify";
+import { ApifyBoardAdapter } from "@/server/jobs/adapters/apify-board";
 import { CompanyCareerPageAdapter } from "@/server/jobs/adapters/company";
+import { GreenhouseBoardAdapter } from "@/server/jobs/adapters/ats/greenhouse";
+import { LeverBoardAdapter } from "@/server/jobs/adapters/ats/lever";
+import { logger } from "@/server/logger";
+import { withRetry } from "@/server/retry";
 import type { JobBoardAdapter, JobSearchContext } from "@/server/jobs/types";
 
-const adapters: JobBoardAdapter[] = [new ApifyJobAdapter(), new CompanyCareerPageAdapter()];
+const adapters: JobBoardAdapter[] = [
+  new ApifyJobAdapter(),
+  new ApifyBoardAdapter("INDEED"),
+  new ApifyBoardAdapter("GLASSDOOR"),
+  new ApifyBoardAdapter("ZIPRECRUITER"),
+  new ApifyBoardAdapter("MONSTER"),
+  new GreenhouseBoardAdapter(),
+  new LeverBoardAdapter(),
+  new CompanyCareerPageAdapter()
+];
 
 export function buildSearchContext(profile: {
   preferredRoles: string[];
@@ -23,7 +37,29 @@ export function buildSearchContext(profile: {
 }
 
 export async function fetchAndStoreJobs(context: JobSearchContext) {
-  const scraped = dedupeJobs((await Promise.all(adapters.map((adapter) => adapter.search(context)))).flat());
+  const scraped = dedupeJobs(
+    (
+      await Promise.all(
+        adapters.map((adapter) =>
+          withRetry(() => adapter.search(context), {
+            attempts: 2,
+            onRetry: (error, attempt) =>
+              logger.warn("job adapter retry", {
+                source: adapter.source,
+                attempt,
+                error: error instanceof Error ? error.message : error
+              })
+          }).catch((error) => {
+            logger.warn("job adapter failed", {
+              source: adapter.source,
+              error: error instanceof Error ? error.message : error
+            });
+            return [];
+          })
+        )
+      )
+    ).flat()
+  );
   const db = getDb();
   const stored = [];
 

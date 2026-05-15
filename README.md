@@ -27,6 +27,12 @@ The Next.js app owns product UX, API routes, auth boundaries, and business servi
 4. Start the app with `npm run dev`.
 5. Start background processing with `npm run worker:daily`.
 
+For local infrastructure, run:
+
+```bash
+docker compose up -d
+```
+
 ## Important Paths
 
 - `prisma/schema.prisma`: SaaS data model
@@ -36,6 +42,7 @@ The Next.js app owns product UX, API routes, auth boundaries, and business servi
 - `src/server/ai`: ATS scoring and AI prompts
 - `src/app/api`: HTTP API surface
 - `n8n/daily-job-automation.json`: n8n workflow import
+- `docker-compose.yml`: local PostgreSQL and Redis
 
 ## Deployment
 
