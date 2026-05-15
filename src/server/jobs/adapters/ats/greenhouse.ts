@@ -1,4 +1,4 @@
-import type { JobBoardAdapter, JobSearchContext, ScrapedJob } from "@/server/jobs/types";
+import type { JobBoardAdapter, ScrapedJob } from "@/server/jobs/types";
 
 type GreenhouseJob = {
   id: number;
@@ -12,7 +12,7 @@ type GreenhouseJob = {
 export class GreenhouseBoardAdapter implements JobBoardAdapter {
   source = "GREENHOUSE" as const;
 
-  async search(_context: JobSearchContext): Promise<ScrapedJob[]> {
+  async search(): Promise<ScrapedJob[]> {
     const boards = (process.env.GREENHOUSE_BOARDS ?? "").split(",").map((board) => board.trim()).filter(Boolean);
     const results: ScrapedJob[] = [];
 

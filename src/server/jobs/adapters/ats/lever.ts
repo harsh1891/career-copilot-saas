@@ -1,4 +1,4 @@
-import type { JobBoardAdapter, JobSearchContext, ScrapedJob } from "@/server/jobs/types";
+import type { JobBoardAdapter, ScrapedJob } from "@/server/jobs/types";
 
 type LeverPosting = {
   id: string;
@@ -13,7 +13,7 @@ type LeverPosting = {
 export class LeverBoardAdapter implements JobBoardAdapter {
   source = "LEVER" as const;
 
-  async search(_context: JobSearchContext): Promise<ScrapedJob[]> {
+  async search(): Promise<ScrapedJob[]> {
     const companies = (process.env.LEVER_COMPANIES ?? "").split(",").map((company) => company.trim()).filter(Boolean);
     const results: ScrapedJob[] = [];
 

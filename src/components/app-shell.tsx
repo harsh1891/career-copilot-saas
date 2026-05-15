@@ -8,7 +8,7 @@ const nav = [
   { href: "/resumes", label: "Tailored Resumes", icon: FileText },
   { href: "/applications", label: "Applications", icon: UserRoundCheck },
   { href: "/settings", label: "Settings", icon: Settings }
-];
+] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
